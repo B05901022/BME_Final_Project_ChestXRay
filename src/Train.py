@@ -61,8 +61,8 @@ def gem(x, p=3, eps=1e-6, clamp=True, add_bias=False, keepdims=False):
 
 
 # --- Pretrained Model ---
-#model = EfficientNet.from_pretrained('efficientnet-b5')
-model  = torch.hub.load('facebookresearch/semi-supervised-ImageNet1K-models', 'resnext50_32x4d_swsl')
+model = EfficientNet.from_pretrained('efficientnet-b5')
+#model  = torch.hub.load('facebookresearch/semi-supervised-ImageNet1K-models', 'resnext50_32x4d_swsl')
 # For torch.hub usages, change C:\ProgramData\Anaconda3\Lib\site-packages\torch\hub.py
 # from os.remove(path) to pass
 
