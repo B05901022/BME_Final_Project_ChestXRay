@@ -29,7 +29,7 @@ def ImageDataLoader(train_img = '../../',
     
     # --- Transforms ---
     img_transform = transforms.Compose([
-            transforms.RandomResizedCrop(224),
+            transforms.RandomResizedCrop(456),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor()
             ])
