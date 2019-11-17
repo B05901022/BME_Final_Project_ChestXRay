@@ -50,6 +50,5 @@ img   = transform(img)
 show_image(img)
 img   = img / 255
 img   = img.unsqueeze(0)
-print(img.shape)
-pred  = model(img)
+
 
