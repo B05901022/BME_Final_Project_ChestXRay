@@ -56,9 +56,10 @@ class ImageDataset(torch.utils.data.Dataset):
         label = label.values
         return label
     def __getitem__(self, index):
-        img = Image.open(os.path.join(self.image_dir, self.label[index][0])).convert('RGB')
+        img = Image.open(os.path.join(self.image_dir, self.label[index][0]))
         if self.transform is not None:
             img = self.transform(img)
+        img = img.convert('RGB') / 255
         lbl = torch.Tensor(self.label[index][5:].astype(np.float16))
         return img, lbl
     def __len__(self):
