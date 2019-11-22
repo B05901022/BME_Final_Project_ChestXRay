@@ -14,8 +14,9 @@ import os
 
 def ImageDataLoader(train_img = '../../',
                     train_lab = '../../CheXpert-v1.0-small/train.csv',
-                    BATCHSIZE = 64,
-                    NUMWORKER = 12):
+                    batchsize = 64,
+                    numworker = 12,
+                    res       = 456):
 
     """
     train_dataset (images):
@@ -29,7 +30,7 @@ def ImageDataLoader(train_img = '../../',
     
     # --- Transforms ---
     img_transform = transforms.Compose([
-            transforms.RandomResizedCrop(456),
+            transforms.RandomResizedCrop(res),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor()
             ])
@@ -40,8 +41,8 @@ def ImageDataLoader(train_img = '../../',
                                  transform=img_transform)
     
     # --- DataLoader ---
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCHSIZE, num_workers=NUMWORKER, pin_memory=True)
-    return train_loader
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batchsize, num_workers=numworker, pin_memory=True)
+    return train_loader, len(train_dataset)
 
 class ImageDataset(torch.utils.data.Dataset):
     def __init__(self, image_dir, label_dir, transform):

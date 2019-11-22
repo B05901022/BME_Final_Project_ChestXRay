@@ -1,0 +1,21 @@
+model:
+  pretrained: True
+  model_name: 'efficientnet-b5'
+optimizer:
+  lr: 0.0001
+  betas: !!python/tuple [0.9, 0.999]
+  eps: 1.0e-8
+  weight_decay: 1.0e-5
+train_loader:
+  train_img: '../../'                              # Directory of ChexPert images
+  train_lab: '../../CheXpert-v1.0-small/train.csv' # Directory of ChexPert train label csv file
+  batchsize: 64
+  numworker: 12
+test_loader:
+  test_img: '../../'                               # Directory of ChexPert images
+  test_lab: '../../CheXpert-v1.0-small/valid.csv'  # Directory of ChexPert valid label csv file
+  batchsize: 64
+  numworker: 12
+train_param:
+  epoch: 20
+  batchsize: 64

@@ -17,8 +17,10 @@ from   PIL import Image
 import matplotlib.pyplot as plt
 import math
 
-from efficientnet_pytorch import EfficientNet
+from model import EfficientNet_Model
+from dataset import ImageDataLoader
 
+"""
 def show_image(img):
     '''
     Display a tensor image with (3, height, width).
@@ -28,17 +30,6 @@ def show_image(img):
     plt.imshow(img_cp, cmap='gray')
     return
 
-# --- Pretrained Model ---
-"""
-For torch.hub usages, change C:\ProgramData\Anaconda3\Lib\site-packages\torch\hub.py
-from os.remove(path) to pass
-"""
-#model = EfficientNet.from_pretrained('efficientnet-b5')
-#model  = torch.hub.load('facebookresearch/semi-supervised-ImageNet1K-models', 'resnext50_32x4d_swsl')
-
-# --- New Model ---
-model = EfficientNet.from_name('efficientnet-b5')
-
 # --- Transforms ---
 transform = transforms.Compose([transforms.RandomResizedCrop(456),
                                 transforms.ToTensor()])
@@ -46,9 +37,12 @@ transform2 = transforms.Compose([transforms.ToTensor()])
 
 img   = Image.open('./00000001_000.png').convert(mode="RGB")
 show_image(transform2(img))
-img   = transform(img)
-show_image(img)
-img   = img / 255
-img   = img.unsqueeze(0)
+img2   = transform(img)
+show_image(img2)
+#img   = img / 255
+#img   = img.unsqueeze(0)
+"""
 
+model = EfficientNet_Model(pretrained=True, model_name='efficientnet-b5')
+train_loader = ImageDataLoader(RES=model._global_params.image_size)
 
