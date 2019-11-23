@@ -10,7 +10,7 @@ from efficientnet_pytorch import EfficientNet
 
 class EfficientNet_Model(nn.Module):
     
-    def __init__(self, pretrained=True, model_name='efficientnet-b5'):
+    def __init__(self, pretrained=True, model_name='efficientnet-b5', num_classes=14):
         super(EfficientNet_Model, self).__init__()
         
         # --- LOAD MODEL ---
@@ -30,14 +30,9 @@ class EfficientNet_Model(nn.Module):
         # image_size
         
         # --- OUTPUT LAYER ---
-        self._avgpool = nn.AdaptiveAvgPool2d(1)
-        self._dropout = nn.Dropout(self._global_params.dropout_rate)
-        self._fc = nn.Linear(self.conv_net._fc.in_features, 14)
+        self.conv_net._fc = nn.Sequential(nn.Linear(self.conv_net._fc.in_features, num_classes),
+                                          nn.Sigmoid())
         
     def forward(self, x):
-        x = self.conv_net.extract_features(x)
-        x = self._avgpool(x)
-        x = x.view(x.size(0),-1)
-        x = self._dropout(x)
-        x = self._fc(x)
+        x = self.conv_net(x)
         return x

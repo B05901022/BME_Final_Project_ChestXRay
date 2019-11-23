@@ -12,11 +12,13 @@ import pandas as pd
 from PIL import Image
 import os
 
-def ImageDataLoader(train_img = '../../',
-                    train_lab = '../../CheXpert-v1.0-small/train.csv',
+def ImageDataLoader(transform_args,
+                    image_dir = '../../',
+                    label_dir = '../../CheXpert-v1.0-small/train.csv',
                     batchsize = 64,
                     numworker = 12,
-                    res       = 456):
+                    res       = 456
+                    ):
 
     """
     train_dataset (images):
@@ -29,15 +31,17 @@ def ImageDataLoader(train_img = '../../',
     """
     
     # --- Transforms ---
-    img_transform = transforms.Compose([
-            transforms.RandomResizedCrop(res),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor()
-            ])
+    # TODO:
+    # 1. Fix getattr problem
+    transform_list = [transforms.RandomResizedCrop(res),
+                      transforms.RandomHorizontalFlip(),
+                      *[getattr(transforms, single_transform)() for single_transform in transform_args],
+                      transforms.ToTensor()]
+    img_transform = transforms.Compose(transform_list)
 
     # --- Data Collection ---
-    train_dataset = ImageDataset(image_dir=train_img,
-                                 label_dir=train_lab,
+    train_dataset = ImageDataset(image_dir=image_dir,
+                                 label_dir=label_dir,
                                  transform=img_transform)
     
     # --- DataLoader ---
@@ -57,10 +61,10 @@ class ImageDataset(torch.utils.data.Dataset):
         label = label.values
         return label
     def __getitem__(self, index):
-        img = Image.open(os.path.join(self.image_dir, self.label[index][0]))
+        img = Image.open(os.path.join(self.image_dir, self.label[index][0])).convert('RGB')
         if self.transform is not None:
             img = self.transform(img)
-        img = img.convert('RGB') / 255
+        img = img / 255
         lbl = torch.Tensor(self.label[index][5:].astype(np.float16))
         return img, lbl
     def __len__(self):
