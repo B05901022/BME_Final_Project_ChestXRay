@@ -12,6 +12,7 @@ import yaml
 import os
 import numpy as np
 import argparse
+import gc
 
 from src.model import EfficientNet_Model
 from src.dataset import ImageDataLoader
@@ -55,11 +56,12 @@ def main(config_dir):
     for e in range(config['train_param']['epoch']):
         print('Epoch %2d'%e)
 
-        # --- TRAIN ---
-        train_model = train_model.train()
         epoch_loss  = 0
         epoch_acc   = 0
         for b_num, (image, label) in enumerate(train_loader):
+            
+            # --- TRAIN ---
+            train_model = train_model.train()
             train_step += 1
             image = image.to(device)
             label = label.to(device, non_blocking=True)
@@ -74,47 +76,61 @@ def main(config_dir):
             epoch_acc  += batch_acc
             logger.add_scalars('loss', {'train_loss': loss.item()}, train_step)
             logger.add_scalars('acc', {'train_acc': batch_acc}, train_step)
-            print('[TRAIN] Batch: %4d/%4d | Loss: %.8f | Accuracy: %.4f'%(b_num, train_batch, loss.item(), batch_acc), end='\r')
+            print('[TRAIN] Batch: %4d/%5d | Loss: %.8f | Accuracy: %.4f'%(b_num+1, train_batch, loss.item(), batch_acc), end='\r')
+            
+            if train_step % config['log']['record_step'] == 0:
+                print('')
+                
+                # --- VALID ---
+                train_model = train_model.eval()
+                valid_loss = 0
+                valid_acc  = 0
+                pred_list  = []
+                label_list = []
+                for b_num, (image, label) in enumerate(test_loader):
+                    image = image.to(device)
+                    label = label.to(device, non_blocking=True)
+                    pred  = train_model(image)
+                    loss  = train_criterion(pred, label)
+                    batch_acc   = torch.sum(torch.eq((pred>=0.5), label.byte())).item() / (config['label_info']['num_classes']*config['train_param']['batchsize'])
+                    valid_loss += loss.item()
+                    valid_acc  += batch_acc
+                    for one_row in pred.cpu().data.numpy():
+                        pred_list.append(one_row)
+                    for one_row in label.cpu().data.numpy():
+                        label_list.append(one_row)
+                    print('[VALID] Batch: %4d/%5d | Step: %5d | Loss: %.8f | Accuracy: %.4f'%(b_num+1, valid_batch, train_step, loss.item(), batch_acc), end='\r')
+                auroc_list, fpr_tpr_list, auroc = auroc_evaluator.auroc(np.array(label_list), np.array(pred_list))
+                roc_fig_list = auroc_evaluator.draw_curve(fpr_tpr_list)
+                print('[VALID] Batch: %4d/%5d | Step: %5d | Valid Loss: %.8f | Valid Accuracy: %.4f | AUROC: %.6f'\
+                      %(b_num+1, valid_batch, train_step, valid_loss/valid_batch, valid_acc/valid_batch, auroc))
+                
+                # --- LOGGING ---
+                logger.add_scalars('loss', {'valid_loss': valid_loss/valid_batch}, train_step)
+                logger.add_scalars('acc', {'valid_acc': valid_acc/valid_batch}, train_step)
+                logger.add_scalars('auroc', {'valid_auroc': auroc}, train_step)
+                logger.add_scalars('auroc', {config['label_info']['class_names'][detection]: auroc_list[detection] \
+                                             for detection in range(config['label_info']['num_classes'])}, train_step)
+                for roc_fig in roc_fig_list:
+                    logger.add_figure('auroc/'+roc_fig[0], roc_fig[1], train_step)
+        
+                # --- UPDATE ---
+                if auroc > best_auroc:
+                    print('Update best model.')
+                    torch.save(train_model, os.path.join(config['train_param']['model_dir'], config['log']['config_name']+'.pkl'))
+                    torch.save(train_optim.state_dict(), os.path.join(config['log']['model_dir'], config['log']['config_name']+'.optim'))
+                    best_auroc = auroc
+                
+            # --- CLEAR MEMORY ---
+            del loss, pred, label, image
+            torch.cuda.empty_cache()
+            gc.collect()
+        
         print('')
+        print('Epoch: %2d | Train Loss: %.8f | Train Accuracy: %.4f'%(e, epoch_loss/train_batch, epoch_acc/train_batch))
 
-        # --- VALID ---
-        train_model = train_model.eval()
-        valid_loss = 0
-        valid_acc  = 0
-        pred_list  = []
-        label_list = []
-        for b_num, (image, label) in enumerate(test_loader):
-            image = image.to(device)
-            label = label.to(device, non_blocking=True)
-            pred  = train_model(image)
-            loss  = train_criterion(pred, label)
-            batch_acc   = torch.sum(torch.eq((pred>=0.5), label.byte())).item() / (config['label_info']['num_classes']*config['train_param']['batchsize'])
-            valid_loss += loss.item()
-            valid_acc  += batch_acc
-            for one_row in pred.cpu().data.numpy():
-                pred_list.append(one_row)
-            for one_row in label.cpu().data.numpy():
-                label_list.append(one_row)
-            print('[VALID] Batch: %4d/%4d | Loss: %.8f | Accuracy: %.4f'%(b_num, valid_batch, loss.item(), batch_acc), end='\r')
-        print('')
-        auroc_list, fpr_tpr_list, auroc = auroc_evaluator.auroc(np.array(label_list), np.array(pred_list))
-        roc_fig = auroc_evaluator.draw_curve(fpr_tpr_list)
-        logger.add_scalars('loss', {'valid_loss': valid_loss/valid_batch}, train_step)
-        logger.add_scalars('acc', {'valid_acc': valid_acc/valid_batch}, train_step)
-        logger.add_scalars('auroc', {'valid_auroc': auroc}, train_step)
-        logger.add_scalars('auroc', {config['label_info']['class_names'][detection]: auroc_list[detection] \
-                                     for detection in range(config['label_info']['num_classes'])}, train_step)
-        logger.add_figure('auroc', roc_fig, train_step)
-
-        # --- UPDATE ---
-        if auroc > best_auroc:
-            print('Update best model.')
-            torch.save(train_model, os.path.join(config['train_param']['model_dir'], config['log']['config_name']+'.pkl'))
-            torch.save(train_optim.state_dict(), os.path.join(config['log']['model_dir'], config['log']['config_name']+'.optim'))
-            best_auroc = auroc
-        print('Epoch: %2d | Train Loss: %.8f | Train Accuracy: %.4f | Valid Loss: %.8f | Valid Accuracy: %.4f | AUROC: %.6f'\
-              %(e, epoch_loss/train_batch, epoch_acc/train_batch, valid_loss/valid_batch, valid_acc/valid_batch, auroc))
-    
+        
+        
     # --- DRAW MODEL GRAPH ---
     #logger.add_graph(train_model, (torch.zeros((1,3,456,456)).to(device), ))
     

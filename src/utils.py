@@ -44,10 +44,10 @@ class AUROC():
         return total_auroc, total_fpr_tpr, eval_auroc.mean()
     
     def draw_curve(self, total_fpr_tpr):
-        fig = plt.figure()
+        fig_list = []
         fig_pos = 0
         for detection in self.eval_metrics:
-            plt.subplot(1, 5, fig_pos+1)
+            fig = plt.figure()
             plt.title('ROC for: ' + self.class_names[detection], {'size': 8})
             plt.plot(*total_fpr_tpr[detection])
             plt.plot([0,1],[0,1],'r--')
@@ -56,6 +56,7 @@ class AUROC():
             plt.ylabel('True Positive Rate')
             plt.xlabel('False Positive Rate')
             fig_pos += 1
-        return fig
+            fig_list.append((self.class_names[detection], fig))
+        return fig_list
             
             
