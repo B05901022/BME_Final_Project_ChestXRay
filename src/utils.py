@@ -9,6 +9,7 @@ Created on Sat Nov 23 14:28:20 2019
 import sklearn.metrics as metrics
 import numpy as np
 import matplotlib.pyplot as plt
+from torch.optim.lr_scheduler import _LRScheduler
 
 class AUROC():
     
@@ -48,7 +49,7 @@ class AUROC():
         fig_pos = 0
         for detection in self.eval_metrics:
             fig = plt.figure()
-            plt.title('ROC for: ' + self.class_names[detection], {'size': 8})
+            plt.title('ROC for: ' + self.class_names[detection])
             plt.plot(*total_fpr_tpr[detection])
             plt.plot([0,1],[0,1],'r--')
             plt.xlim([0,1])
@@ -58,5 +59,30 @@ class AUROC():
             fig_pos += 1
             fig_list.append((self.class_names[detection], fig))
         return fig_list
-            
-            
+
+class WarmupScheduler(_LRScheduler):
+    def __init__(self, optimizer, delay_epochs, after_scheduler):
+        self.delay_epochs = delay_epochs
+        self.after_scheduler = after_scheduler
+        self.finished = False
+        super().__init__(optimizer)
+
+    def get_lr(self):
+        if self.last_epoch >= self.delay_epochs:
+            if not self.finished:
+                self.after_scheduler.base_lrs = self.base_lrs
+                self.finished = True
+            return self.after_scheduler.get_lr()
+        return [base_lrs * (self.last_epoch / self.delay_epochs) for base_lrs in self.base_lrs]
+
+    def step(self, epoch=None):
+        if self.finished:
+            if epoch is None:
+                self.after_scheduler.step(None)
+            else:
+                self.after_scheduler.step(epoch - self.delay_epochs)
+        else:
+            return super(WarmupScheduler, self).step(epoch)
+
+def WarmupLR(optimizer, delay_epochs, base_scheduler):
+    return WarmupScheduler(optimizer, delay_epochs, base_scheduler)

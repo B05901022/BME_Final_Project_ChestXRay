@@ -33,10 +33,8 @@ def ImageDataLoader(transform_args,
     # --- Transforms ---
     # TODO:
     # 1. Fix getattr problem
-    transform_list = [transforms.RandomResizedCrop(res),
-                      transforms.RandomHorizontalFlip(),
-                      *[getattr(transforms, single_transform)() for single_transform in transform_args],
-                      transforms.ToTensor()]
+    transform_list = [getattr(transforms, transform_args[0])(res),
+                      *[getattr(transforms, single_transform)() for single_transform in transform_args[1:]]]
     img_transform = transforms.Compose(transform_list)
 
     # --- Data Collection ---
@@ -57,7 +55,7 @@ class ImageDataset(torch.utils.data.Dataset):
     def _load_label(self, label_dir):
         label = pd.read_csv(label_dir)
         label = label.fillna(0)
-        label = label.replace(-1, 0.5)
+        label = label.replace(-1, 1)
         label = label.values
         return label
     def __getitem__(self, index):
