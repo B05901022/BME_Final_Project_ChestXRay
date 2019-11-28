@@ -1,5 +1,5 @@
 log:
-  config_name: 'default_base'
+  config_name: 'base6'
   log_dir: './log/'
   model_dir: './model/'
   record_step: 1600

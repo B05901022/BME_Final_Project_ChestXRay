@@ -1,12 +1,12 @@
 log:
-  config_name: 'base6'
+  config_name: 'base7'
   log_dir: './log/'
   model_dir: './model/'
   record_step: 1600
   epoch: 3 
 model:
   pretrained: True
-  model_name: 'efficientnet-b5' #'efficientnet-b5'
+  model_name: 'densenet121' #'efficientnet-b5'
   num_classes: 14
 optimizer:
   optimizer_type: 'Adam'
@@ -23,7 +23,7 @@ scheduler:
 train_loader:
   image_dir: '../'                              # Directory of ChexPert images
   label_dir: '../CheXpert-v1.0-small/train.csv' # Directory of ChexPert train label csv file
-  batchsize: 4
+  batchsize: 32
   numworker: 12
   transform_args: !!python/tuple [RandomResizedCrop, RandomHorizontalFlip, ToTensor, RandomErasing]
 test_loader:
