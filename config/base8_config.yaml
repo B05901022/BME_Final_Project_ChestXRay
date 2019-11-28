@@ -23,7 +23,7 @@ scheduler:
 train_loader:
   image_dir: '../'                              # Directory of ChexPert images
   label_dir: '../CheXpert-v1.0-small/train.csv' # Directory of ChexPert train label csv file
-  batchsize: 32
+  batchsize: 16
   numworker: 12
   transform_args: !!python/tuple [RandomResizedCrop, RandomHorizontalFlip, ToTensor, RandomErasing]
 test_loader:
