@@ -31,8 +31,6 @@ def ImageDataLoader(transform_args,
     """
     
     # --- Transforms ---
-    # TODO:
-    # 1. Fix getattr problem
     transform_list = [getattr(transforms, transform_args[0])(res),
                       *[getattr(transforms, single_transform)() for single_transform in transform_args[1:]]]
     img_transform = transforms.Compose(transform_list)
@@ -88,3 +86,40 @@ class ImageDataset(torch.utils.data.Dataset):
         return img, lbl
     def __len__(self):
         return self.label.shape[0]
+
+# =================================================================================================
+
+def TestImageDataLoader(image_dir, input_dir, res):
+    
+    # --- Transforms ---
+    transform_list = [transforms.Resize(res),
+                      transforms.ToTensor()]
+    img_transform = transforms.Compose(transform_list)
+
+    # --- Data Collection ---
+    train_dataset = TestImageDataset(image_dir=image_dir, input_dir=input_dir, transform=img_transform)
+    
+    # --- DataLoader ---
+    train_loader = torch.utils.data.DataLoader(train_dataset)
+    
+    return train_loader, train_dataset.path[:,0]
+  
+class TestImageDataset(torch.utils.data.Dataset):
+    def __init__(self, image_dir, input_dir, transform):
+        self.transform = transform
+        self.image_dir = image_dir
+        self.input_dir = input_dir
+        self.path      = self._load_path(self.input_dir)
+    def _load_path(self, path_dir):
+        path = pd.read_csv(path_dir)
+        path = path.values
+        return path
+    def __getitem__(self, index):
+        img_path = self.path[index][0]
+        img = Image.open(os.path.join(self.image_dir, img_path)).convert('RGB')
+        if self.transform is not None:
+            img = self.transform(img)
+        img = img / 255
+        return img
+    def __len__(self):
+        return self.path.shape[0]
