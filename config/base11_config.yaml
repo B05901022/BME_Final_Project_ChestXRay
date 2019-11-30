@@ -1,0 +1,40 @@
+log:
+  config_name: 'base11'
+  log_dir: './log/'
+  model_dir: './model/'
+  record_step: 1600
+  epoch: 3 
+model:
+  pretrained: False
+  model_name: 'densenet121' #'efficientnet-b5'
+  num_classes: 14
+optimizer:
+  optimizer_type: 'Adam'
+  optimizer_param:
+    lr: 0.0001                                    #0.0001
+    betas: !!python/tuple [0.9,0.999]
+    eps: 1.0e-8
+    weight_decay: 1.0e-5                          #1.0e-5
+scheduler:
+  scheduler_type: 'CosineAnnealingLR'
+  warmup:
+    use_warmup: True
+    warmup_step: 1600
+train_loader:
+  image_dir: '../'                              # Directory of ChexPert images
+  label_dir: '../CheXpert-v1.0-small/train.csv' # Directory of ChexPert train label csv file
+  batchsize: 32
+  numworker: 12
+  transform_args: !!python/tuple [RandomResizedCrop, RandomHorizontalFlip, ToTensor, RandomErasing]
+test_loader:
+  image_dir: '../'                              # Directory of ChexPert images
+  label_dir: '../CheXpert-v1.0-small/valid.csv' # Directory of ChexPert valid label csv file
+  batchsize: 1                                  # Test need a smaller batchsize    
+  numworker: 12
+  transform_args: !!python/tuple [Resize, ToTensor]
+label_info:
+  num_classes: 14
+  class_names: !!python/tuple ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
+                               'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis', 'Pneumothorax',
+                               'Pleural Effusion', 'Pleural Other', 'Fracture', 'Support Devices']
+  eval_metrics: !!python/tuple [8, 2, 6, 5, 10]

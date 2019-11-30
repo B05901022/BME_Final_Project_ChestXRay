@@ -57,6 +57,27 @@ class ImageDataset(torch.utils.data.Dataset):
         label = label.fillna(0)
         label = label.replace(-1, 1)
         label = label.values
+        label = self._label_fix(label)
+        return label
+    def _label_fix(self, label):
+        """
+        fix conflicts from:
+            (1) Lung Opacity
+            (2) Enlarged Cardiomediastinum
+        """
+        for sample in label:
+            if (sample[9] == 1 or sample[10] == 1 or sample[11] == 1 or sample[12] == 1 or sample[13] == 1):
+                # (1) Lung Lesion
+                # (2) Edema
+                # (3) Consolidation
+                # (4) Pneumonia
+                # (5) Atelectasis
+                # --> Lung Opacity
+                sample[8] = 1
+            if (sample[7] == 1):
+                # (1) Cardiomegaly
+                # --> Enlarged Cardiomediastinum
+                sample[6] == 1
         return label
     def __getitem__(self, index):
         img = Image.open(os.path.join(self.image_dir, self.label[index][0])).convert('RGB')
