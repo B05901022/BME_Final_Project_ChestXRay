@@ -12,9 +12,9 @@ Train a classifier for CheXpert dataset and visually explain the model.
 * PIL
 
 ## 0. Dataset
-[CheXpert](https://arxiv.org/abs/1901.07031) is one of the largest chest x-ray image dataset to date, which contains 224316 chest radiographs of 65240 patients.
+[CheXpert](https://arxiv.org/abs/1901.07031) is one of the largest chest x-ray image dataset to date, which contains 224,316 chest radiographs of 65,240 patients.
 For gaining access to the CheXpert dataset, please send registration to [StanfordML 's website](https://stanfordmlgroup.github.io/competitions/chexpert/).
-The dataset we used here is the smaller dataset which is 11 GB, but might be improved if you use the larger version. 
+The dataset we used here is the smaller dataset but might be improved if you use the larger version. 
 After downloading the dataset, you can change the directory description in `config/` and `validation.py` to easily fit your own environment.
 
 ## 1. Train a model from scratch
@@ -26,11 +26,11 @@ python3 main.py -c config/<your_config_file>
 ```
 For monitoring training process, TensorboardX is available.
 ```
-tensorboardX --logdir log/<your_config_name>
+tensorboard --logdir log/<your_config_name>
 ```
 
-## 2. Testing
-For generating predictions for the [CheXpert Challenge](https://stanfordmlgroup.github.io/competitions/chexpert/)
+## 2. Test
+To generate predictions for [CheXpert Challenge](https://stanfordmlgroup.github.io/competitions/chexpert/)
 ```
 python3 validation.py <input-data-csv> <output_prediction-csv>
 ``` 
