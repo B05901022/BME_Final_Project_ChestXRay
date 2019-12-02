@@ -36,7 +36,7 @@ def main(config_dir):
         
     # --- MODEL / OPTIMIZER / DATA_LOADER ---
     train_model = Train_Model(**config['model']).to(device)
-    train_loader, train_num = ImageDataLoader(**config['train_loader'], res=train_model.image_size)
+    train_loader, train_num = ImageDataLoader(**config['train_loader'], res=train_model.image_size, train=True)
     train_optim = getattr(torch.optim, config['optimizer']['optimizer_type'])
     train_optim = train_optim(train_model.parameters(), **config['optimizer']['optimizer_param'])
     train_scheduler = getattr(torch.optim.lr_scheduler, config['scheduler']['scheduler_type'])
@@ -44,7 +44,7 @@ def main(config_dir):
                                       T_max=(train_num//config['train_loader']['batchsize'])*config['log']['epoch'])
     if config['scheduler']['warmup']['use_warmup']:
         train_scheduler = WarmupLR(train_optim, config['scheduler']['warmup']['warmup_step'], train_scheduler)
-    test_loader, _ = ImageDataLoader(**config['test_loader'], res=train_model.image_size)
+    test_loader, _ = ImageDataLoader(**config['test_loader'], res=train_model.image_size, train=False)
     
     # --- CRITERION ---
     train_criterion = nn.BCELoss().to(device)

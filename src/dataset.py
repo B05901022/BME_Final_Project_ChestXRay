@@ -17,7 +17,8 @@ def ImageDataLoader(transform_args,
                     label_dir = '../../CheXpert-v1.0-small/train.csv',
                     batchsize = 64,
                     numworker = 12,
-                    res       = 456
+                    res       = 456,
+                    train     = True
                     ):
 
     """
@@ -38,24 +39,28 @@ def ImageDataLoader(transform_args,
     # --- Data Collection ---
     train_dataset = ImageDataset(image_dir=image_dir,
                                  label_dir=label_dir,
-                                 transform=img_transform)
+                                 transform=img_transform,
+                                 train=train)
     
     # --- DataLoader ---
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batchsize, num_workers=numworker, pin_memory=True)
     return train_loader, len(train_dataset)
 
 class ImageDataset(torch.utils.data.Dataset):
-    def __init__(self, image_dir, label_dir, transform):
+    def __init__(self, image_dir, label_dir, transform, train=True):
         self.transform = transform
         self.image_dir = image_dir
         self.label_dir = label_dir
+        self.trainmode = train
         self.label = self._load_label(self.label_dir)
     def _load_label(self, label_dir):
         label = pd.read_csv(label_dir)
+        label['Lung Lesion'] = label['Lung Lesion'].fillna(1)
         label = label.fillna(0)
         label = label.replace(-1, 1)
         label = label.values
-        label = self._label_fix(label)
+        if self.trainmode:
+            label = self._label_fix(label)
         return label
     def _label_fix(self, label):
         """
