@@ -55,7 +55,7 @@ class ImageDataset(torch.utils.data.Dataset):
         self.label = self._load_label(self.label_dir)
     def _load_label(self, label_dir):
         label = pd.read_csv(label_dir)
-        label['Lung Lesion'] = label['Lung Lesion'].fillna(1)
+        label['Lung Lesion'] = label['Lung Lesion'].replace(-1, 0)
         label = label.fillna(0)
         label = label.replace(-1, 1)
         label = label.values
