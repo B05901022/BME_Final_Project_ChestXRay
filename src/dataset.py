@@ -68,7 +68,6 @@ class ImageDataset(torch.utils.data.Dataset):
             (2) Enlarged Cardiomediastinum
         """
         for sample in range(label.shape[0]):
-            """
             if (label[sample][9] == 1 or label[sample][10] == 1 or label[sample][11] == 1 or label[sample][12] == 1 or label[sample][13] == 1):
                 # (1) Lung Lesion
                 # (2) Edema
@@ -77,7 +76,6 @@ class ImageDataset(torch.utils.data.Dataset):
                 # (5) Atelectasis
                 # --> Lung Opacity
                 label[sample][8] = 1
-            """
             if (label[sample][7] == 1):
                 # (1) Cardiomegaly
                 # --> Enlarged Cardiomediastinum
