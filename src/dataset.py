@@ -55,7 +55,6 @@ class ImageDataset(torch.utils.data.Dataset):
         self.label = self._load_label(self.label_dir)
     def _load_label(self, label_dir):
         label = pd.read_csv(label_dir)
-        label['Lung Lesion'] = label['Lung Lesion'].fillna(1)
         label = label.fillna(0)
         label = label.replace(-1, 1)
         label = label.values
@@ -69,7 +68,8 @@ class ImageDataset(torch.utils.data.Dataset):
             (2) Enlarged Cardiomediastinum
         """
         for sample in range(label.shape[0]):
-            if (label[sample][10] == 1 or label[sample][11] == 1 or label[sample][12] == 1 or label[sample][13] == 1):
+            """
+            if (label[sample][9] == 1 or label[sample][10] == 1 or label[sample][11] == 1 or label[sample][12] == 1 or label[sample][13] == 1):
                 # (1) Lung Lesion
                 # (2) Edema
                 # (3) Consolidation
@@ -77,6 +77,7 @@ class ImageDataset(torch.utils.data.Dataset):
                 # (5) Atelectasis
                 # --> Lung Opacity
                 label[sample][8] = 1
+            """
             if (label[sample][7] == 1):
                 # (1) Cardiomegaly
                 # --> Enlarged Cardiomediastinum

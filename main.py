@@ -17,7 +17,7 @@ import warnings
 
 from src.model import Train_Model
 from src.dataset import ImageDataLoader
-from src.utils import AUROC, WarmupLR
+from src.utils import AUROC, AUPRC, ACC_SCORE, WarmupLR
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 torch.backends.cudnn.benchmark = True
@@ -47,8 +47,11 @@ def main(config_dir):
     test_loader, _ = ImageDataLoader(**config['test_loader'], res=train_model.image_size, train=False)
     
     # --- CRITERION ---
-    train_criterion = nn.BCELoss().to(device)
+    loss_weight = torch.Tensor(config['criterion']['weight'])
+    train_criterion = nn.BCELoss(weight=loss_weight).to(device)
     auroc_evaluator = AUROC(**config['label_info'])
+    auprc_evaluator = AUPRC(**config['label_info'])
+    acc_evaluator   = ACC_SCORE(**config['label_info'])
     best_auroc = 0
     train_batch = len(train_loader)
     valid_batch = len(test_loader)
@@ -101,10 +104,20 @@ def main(config_dir):
                     for one_row in label.cpu().data.numpy():
                         label_list.append(one_row)
                     print('[VALID] Batch: %5d/%5d | Step: %6d | Loss: %.8f | Accuracy: %.4f'%(b_num+1, valid_batch, train_step, loss.item(), batch_acc), end='\r')
+                
+                # --- AUROC ---
                 auroc_list, fpr_tpr_list, auroc = auroc_evaluator.auroc(np.array(label_list), np.array(pred_list))
                 roc_fig_list = auroc_evaluator.draw_curve(fpr_tpr_list)
-                print('[VALID] Batch: %5d/%5d | Step: %6d | Valid Loss: %.8f | Valid Accuracy: %.4f | AUROC: %.6f'\
-                      %(b_num+1, valid_batch, train_step, valid_loss/valid_batch, valid_acc/valid_batch, auroc))
+                
+                # --- AUPRC ---
+                auprc_list, pr_list, auprc = auprc_evaluator.auprc(np.array(label_list), np.array(pred_list))
+                prc_fig_list = auprc_evaluator.draw_curve(pr_list)
+                
+                # --- ACC ---
+                acc_score_list = acc_evaluator.acc(np.array(label_list), np.array(pred_list)) 
+                
+                print('[VALID] Batch: %5d/%5d | Step: %6d | Valid Loss: %.8f | Valid Accuracy: %.4f | AUROC: %.6f | AUPRC: %.6f'\
+                      %(b_num+1, valid_batch, train_step, valid_loss/valid_batch, valid_acc/valid_batch, auroc, auprc))
                 
                 # --- LOGGING ---
                 logger.add_scalars('loss', {'valid_loss': valid_loss/valid_batch}, train_step)
@@ -112,8 +125,14 @@ def main(config_dir):
                 logger.add_scalars('auroc', {'valid_auroc': auroc}, train_step)
                 logger.add_scalars('auroc', {config['label_info']['class_names'][detection]: auroc_list[detection] \
                                              for detection in range(config['label_info']['num_classes'])}, train_step)
+                logger.add_scalars('auprc', {config['label_info']['class_names'][detection]: auprc_list[detection] \
+                                             for detection in range(config['label_info']['num_classes'])}, train_step)
+                logger.add_scalars('acc', {config['label_info']['class_names'][detection]: acc_score_list[detection] \
+                                             for detection in range(config['label_info']['num_classes'])}, train_step)
                 for roc_fig in roc_fig_list:
                     logger.add_figure('auroc/'+roc_fig[0], roc_fig[1], train_step)
+                for prc_fig in prc_fig_list:
+                    logger.add_figure('auprc/'+prc_fig[0], prc_fig[1], train_step)
         
                 # --- UPDATE ---
                 if auroc > best_auroc:

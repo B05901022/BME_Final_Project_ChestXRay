@@ -26,7 +26,7 @@ class AUROC():
         output:
             total_auroc: [np.array] (num_classes, )
             total_fpr_tpr: [list] list of (fpr, tpr) tuples
-            total_auroc.mean(): mean for total_auroc
+            total_auroc.mean(): mean for total_auroc of interest
         """
         total_auroc = []
         total_fpr_tpr = []
@@ -59,6 +59,77 @@ class AUROC():
             fig_pos += 1
             fig_list.append((self.class_names[detection], fig))
         return fig_list
+    
+class AUPRC():
+    
+    def __init__(self, num_classes, class_names, eval_metrics):
+        self.num_classes = num_classes
+        self.class_names = class_names
+        self.eval_metrics = np.array(eval_metrics)
+        
+    def auprc(self, label, pred):
+        """
+        input:
+            label: [np.array] (num_samples, num_classes)
+            pred:  [np.array] (num_samples, num_classes)
+        output:
+            total_auprc: [np.array] (num_classes, )
+            total_pr: [list] list of (precision, recall) tuples
+            total_auprc.mean(): mean for total_auprc of interest
+        """
+        total_auprc = []
+        total_pr = []
+        for detection in range(self.num_classes):
+            precision, recall, threshold = metrics.precision_recall_curve(label[:,detection], pred[:,detection])
+            if len(np.unique(label[:,detection])) != 1:
+                prc_auc = metrics.auc(recall, precision)
+            else:
+                if np.isnan(precision[0]): precision = np.zeros(precision.shape)
+                if np.isnan(recall[0]): recall = np.zeros(recall.shape)
+                prc_auc = metrics.accuracy_score(label[:,detection], np.rint(pred[:,detection]))
+            total_auprc.append(prc_auc)
+            total_pr.append((precision, recall))
+        total_auprc = np.array(total_auprc)
+        eval_auprc  = total_auprc[self.eval_metrics]
+        return total_auprc, total_pr, eval_auprc.mean()
+    
+    def draw_curve(self, total_pr):
+        fig_list = []
+        fig_pos = 0
+        for detection in self.eval_metrics:
+            fig = plt.figure()
+            plt.title('PRC for: ' + self.class_names[detection])
+            plt.plot(*total_pr[detection])
+            plt.plot([0,1],[0,1],'r--')
+            plt.xlim([0,1])
+            plt.ylim([0,1])
+            plt.ylabel('Precision')
+            plt.xlabel('Recall')
+            fig_pos += 1
+            fig_list.append((self.class_names[detection], fig))
+        return fig_list
+    
+class ACC_SCORE():
+    
+    def __init__(self, num_classes, class_names, eval_metrics):
+        self.num_classes = num_classes
+        self.class_names = class_names
+        self.eval_metrics = np.array(eval_metrics)
+        
+    def acc(self, label, pred):
+        """
+        input:
+            label: [np.array] (num_samples, num_classes)
+            pred:  [np.array] (num_samples, num_classes)
+        output:
+            total_acc: [np.array] (num_classes, )
+        """
+        total_acc = []
+        for detection in range(self.num_classes):
+            acc = metrics.accuracy_score(label[:,detection], np.rint(pred[:,detection]))
+            total_acc.append(acc)
+        total_acc = np.array(total_acc)
+        return total_acc
 
 class WarmupScheduler(_LRScheduler):
     def __init__(self, optimizer, delay_epochs, after_scheduler):
