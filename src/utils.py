@@ -100,7 +100,6 @@ class AUPRC():
             fig = plt.figure()
             plt.title('PRC for: ' + self.class_names[detection])
             plt.plot(*total_pr[detection])
-            plt.plot([0,1],[0,1],'r--')
             plt.xlim([0,1])
             plt.ylim([0,1])
             plt.ylabel('Precision')
