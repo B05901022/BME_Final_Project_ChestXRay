@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 import pandas as pd
 from PIL import Image
 import os
-from RandAugment import RandAugment
+#from RandAugment import RandAugment
 
 def ImageDataLoader(transform_args,
                     image_dir = '../../',
@@ -36,8 +36,8 @@ def ImageDataLoader(transform_args,
     transform_list = [getattr(transforms, transform_args[0])(res),
                       *[getattr(transforms, single_transform)() for single_transform in transform_args[1:]]]
     img_transform = transforms.Compose(transform_list)
-    if train:
-        img_transform.transforms.insert(0, RandAugment(2, 9))
+    #if train:
+    #    img_transform.transforms.insert(0, RandAugment(2, 3))
     
     # --- Data Collection ---
     train_dataset = ImageDataset(image_dir=image_dir,
