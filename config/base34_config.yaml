@@ -41,7 +41,7 @@ test_loader:
   randaug: False
   label_smooth: False
   transform_args: !!python/tuple [Resize, ToTensor]
-  pseudo_dataset_args:
+  pseudo_label_args:
     use_pseudo_label: False
     pseudo_dataset_args:
       image_dir: '../'
