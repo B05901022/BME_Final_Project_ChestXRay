@@ -33,7 +33,6 @@ train_loader:
     pseudo_dataset_args:
       image_dir: '../'
       label_dir: '../ChestX-ray14/base23_320.csv'
-      transform_args: !!python/tuple [RandomResizedCrop, RandomHorizontalFlip, ToTensor, RandomErasing]
 test_loader:
   image_dir: '../'                              # Directory of ChexPert images
   label_dir: '../CheXpert-v1.0-small/valid.csv' # Directory of ChexPert valid label csv file

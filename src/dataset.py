@@ -49,7 +49,11 @@ def ImageDataLoader(transform_args,
                                  train=train,
                                  label_smooth=label_smooth)
     if pseudo_label_args['use_pseudo_label']:
-        ssl_dataset   = ImageDataset(**pseudo_label_args['pseudo_dataset_args'])
+        ssl_dataset   = ImageDataset(image_dir=pseudo_label_args['pseudo_dataset_args']['image_dir'],
+                                     label_dir=pseudo_label_args['pseudo_dataset_args']['label_dir'],
+                                     transform=img_transform,
+                                     train=train,
+                                     label_smooth=label_smooth)
         train_dataset = torch.utils.data.ConcatDataset((train_dataset, ssl_dataset))
     
     # --- DataLoader ---
