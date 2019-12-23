@@ -14,6 +14,7 @@ import os
 from RandAugment import RandAugment
 
 def ImageDataLoader(transform_args,
+                    pseudo_label_args,
                     randaug   = False,
                     image_dir = '../../',
                     label_dir = '../../CheXpert-v1.0-small/train.csv',
@@ -21,7 +22,7 @@ def ImageDataLoader(transform_args,
                     numworker = 12,
                     res       = 456,
                     train     = True,
-                    label_smooth = False
+                    label_smooth = False,
                     ):
 
     """
@@ -47,6 +48,9 @@ def ImageDataLoader(transform_args,
                                  transform=img_transform,
                                  train=train,
                                  label_smooth=label_smooth)
+    if pseudo_label_args['use_pseudo_label']:
+        ssl_dataset   = ImageDataset(**pseudo_label_args['pseudo_dataset_args'])
+        train_dataset = torch.utils.data.ConcatDataset((train_dataset, ssl_dataset))
     
     # --- DataLoader ---
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batchsize, num_workers=numworker, pin_memory=True)
