@@ -41,6 +41,11 @@ test_loader:
   randaug: False
   label_smooth: False
   transform_args: !!python/tuple [Resize, ToTensor]
+  pseudo_dataset_args:
+    use_pseudo_label: False
+    pseudo_dataset_args:
+      image_dir: '../'
+      label_dir: '../ChestX-ray14/base23_320.csv'
 label_info:
   num_classes: 14
   class_names: !!python/tuple ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
