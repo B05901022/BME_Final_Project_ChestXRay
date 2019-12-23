@@ -75,7 +75,7 @@ def main(config_dir):
             loss.backward()
             train_optim.step()
             train_scheduler.step()
-            batch_acc   = torch.sum(torch.eq((pred>=0.5), label.byte())).item() / (config['label_info']['num_classes']*config['train_loader']['batchsize'])
+            batch_acc   = torch.sum(torch.eq((pred>=0.5), (label>0.5))).item() / (config['label_info']['num_classes']*config['train_loader']['batchsize'])
             epoch_loss += loss.item()
             epoch_acc  += batch_acc
             logger.add_scalars('loss', {'train_loss': loss.item()}, train_step)
@@ -96,7 +96,7 @@ def main(config_dir):
                     label = label.to(device, non_blocking=True)
                     pred  = train_model(image)
                     loss  = train_criterion(pred, label)
-                    batch_acc   = torch.sum(torch.eq((pred>=0.5), label.byte())).item() / (config['label_info']['num_classes']*config['test_loader']['batchsize'])
+                    batch_acc   = torch.sum(torch.eq((pred>=0.5), (label>0.5))).item() / (config['label_info']['num_classes']*config['test_loader']['batchsize'])
                     valid_loss += loss.item()
                     valid_acc  += batch_acc
                     for one_row in pred.cpu().data.numpy():

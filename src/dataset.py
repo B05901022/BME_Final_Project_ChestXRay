@@ -11,15 +11,17 @@ import torchvision.transforms as transforms
 import pandas as pd
 from PIL import Image
 import os
-#from RandAugment import RandAugment
+from RandAugment import RandAugment
 
 def ImageDataLoader(transform_args,
+                    randaug   = False,
                     image_dir = '../../',
                     label_dir = '../../CheXpert-v1.0-small/train.csv',
                     batchsize = 64,
                     numworker = 12,
                     res       = 456,
-                    train     = True
+                    train     = True,
+                    label_smooth = False
                     ):
 
     """
@@ -36,25 +38,27 @@ def ImageDataLoader(transform_args,
     transform_list = [getattr(transforms, transform_args[0])(res),
                       *[getattr(transforms, single_transform)() for single_transform in transform_args[1:]]]
     img_transform = transforms.Compose(transform_list)
-    #if train:
-    #    img_transform.transforms.insert(0, RandAugment(2, 3))
+    if train and randaug:
+        img_transform.transforms.insert(0, RandAugment(2, 3))
     
     # --- Data Collection ---
     train_dataset = ImageDataset(image_dir=image_dir,
                                  label_dir=label_dir,
                                  transform=img_transform,
-                                 train=train)
+                                 train=train,
+                                 label_smooth=label_smooth)
     
     # --- DataLoader ---
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batchsize, num_workers=numworker, pin_memory=True)
     return train_loader, len(train_dataset)
 
 class ImageDataset(torch.utils.data.Dataset):
-    def __init__(self, image_dir, label_dir, transform, train=True):
+    def __init__(self, image_dir, label_dir, transform, train=True, label_smooth=False):
         self.transform = transform
         self.image_dir = image_dir
         self.label_dir = label_dir
         self.trainmode = train
+        self.label_smooth = label_smooth
         self.label = self._load_label(self.label_dir)
     def _load_label(self, label_dir):
         label = pd.read_csv(label_dir)
@@ -63,6 +67,8 @@ class ImageDataset(torch.utils.data.Dataset):
         label = label.values
         if self.trainmode:
             label = self._label_fix(label)
+        if self.label_smooth:
+            label[:,5:] = label[:,5:] * 0.8 + np.ones((label.shape[0],14)) * 0.1
         return label
     def _label_fix(self, label):
         """
@@ -93,6 +99,50 @@ class ImageDataset(torch.utils.data.Dataset):
         return img, lbl
     def __len__(self):
         return self.label.shape[0]
+
+# =================================================================================================
+
+def UnlabeledImageDataLoader(transform_args,
+                             randaug   = False,
+                             image_dir = '../../ChestX-ray14/images/',
+                             label_dir_list = ['../../ChestX-ray14/train_val_list.txt', '../../ChestX-ray14/test_list.txt'],
+                             batchsize = 64,
+                             numworker = 12,
+                             res       = 456,
+                             train     = True,
+                             ):    
+    # --- Transforms ---
+    transform_list = [getattr(transforms, transform_args[0])(res),
+                      *[getattr(transforms, single_transform)() for single_transform in transform_args[1:]]]
+    img_transform = transforms.Compose(transform_list)
+    if train and randaug:
+        img_transform.transforms.insert(0, RandAugment(2, 3))
+    
+    # --- Data Collection ---
+    unlabeled_dataset = UnlabeledImageDataset(image_dir=image_dir,
+                                              label_dir_list=label_dir_list,
+                                              transform=img_transform)
+    
+    # --- DataLoader ---
+    unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batchsize,
+                                                   num_workers=numworker, pin_memory=True)
+    return unlabeled_loader, unlabeled_dataset.label_dir
+ 
+class UnlabeledImageDataset(torch.utils.data.Dataset):
+    def __init__(self, image_dir, label_dir_list, transform):
+        self.transform = transform
+        self.image_dir = image_dir
+        self.label_dir = []
+        for i in label_dir_list:
+            self.label_dir += open(i,'r').read().split('\n')
+    def __getitem__(self, index):
+        img = Image.open(os.path.join(self.image_dir, self.label_dir[index])).convert('RGB')
+        if self.transform is not None:
+            img = self.transform(img)
+        img = img / 255
+        return img
+    def __len__(self):
+        return len(self.label_dir)
 
 # =================================================================================================
 
