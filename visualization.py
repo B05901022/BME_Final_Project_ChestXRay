@@ -6,11 +6,14 @@ Created on Mon Dec 23 23:08:37 2019
 """
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from PIL import Image
 
+import gc
 import os
+import copy
 import json
 import numpy as np
 import pandas as pd
@@ -27,14 +30,22 @@ from captum.attr import DeepLift
 from captum.attr import visualization as viz
 #from captum.attr import Occlusion
 
-#device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-device = torch.device('cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+#device = torch.device('cpu')
 print('Executing on device:', device)
 
-def main(image_index):
+def model_transform(model):
+    def backward_hook(module, grad_input, grad_output):
+        return grad_input
+    for m in model.modules():
+        if isinstance(m, nn.ReLU):
+            m.saved_grad = m.register_backward_hook(backward_hook)
+    return model
+
+def main(image_index, model_index=23):
     
     # --- Load Model ---
-    model = './model/base23.pkl'
+    model = './model/base'+str(model_index)+'.pkl'
     model = torch.load(model, map_location=device).to(device)
     model = model.eval()
     
@@ -70,6 +81,12 @@ def main(image_index):
     print('{:17s} {:7s} {:3s}'.format('Pathology','Predict','Ans'))
     for lbl, prd, gd in zip(target_label[target_obsrv], pred[0][target_obsrv], label_gd[img_index][target_obsrv]):
         print('{:17s}:{:.5f}({})'.format(lbl, prd.item(), gd))
+    
+    del pred
+    torch.cuda.empty_cache()
+    gc.collect()
+    model = model.to(torch.device('cpu'))
+    img_transformed = img_transformed.to(torch.device('cpu'))
     
     # --- Visualization ---
     pathology_input = input('Please enter which pathology to visualize:\n[0]Atelectasis\n[1]Cardiomegaly\n[2]Consolidation\n[3]Edema\n[4]Pleural Effusion\n[5]Exit\n')
@@ -120,18 +137,19 @@ def main(image_index):
                                               ["all", "absolute_value"],
                                               cmap=default_cmap,
                                               show_colorbar=True)
+        del attributions_gs
     elif method_input == '1':
         print('Using Integrated Gradients')
         # --- Integrated Gradients ---
         integrated_gradients = IntegratedGradients(model)
         attributions_ig = integrated_gradients.attribute(img_transformed, target=pathology, n_steps=200)
-        _ = viz.visualize_image_attr(np.transpose(attributions_ig.squeeze().cpu().detach().numpy(), (1,2,0)),
-                                     np.transpose(img.squeeze().cpu().detach().numpy(), (1,2,0)),
-                                     method=["original_image", "heat_map"],
-                                     cmap=default_cmap,
-                                     show_colorbar=True,
-                                     sign='positive',
-                                     outlier_perc=1)
+        _ = viz.visualize_image_attr_multiple(np.transpose(attributions_ig.squeeze().cpu().detach().numpy(), (1,2,0)),
+                                              np.transpose(img.squeeze().cpu().detach().numpy(), (1,2,0)),
+                                              method=["original_image", "heat_map"],
+                                              cmap=default_cmap,
+                                              show_colorbar=True,
+                                              sign=["all", "positive"])
+        del attributions_ig
     elif method_input == '2':
         print('Using Noise Tunnel')
         # --- Noise Tunnel ---
@@ -144,7 +162,9 @@ def main(image_index):
                                               ["all", "positive"],
                                               cmap=default_cmap,
                                               show_colorbar=True)
+        del attributions_ig_nt
     elif method_input == '3':
+        model = model_transform(model)
         dl = DeepLift(model)
         attr_dl = dl.attribute(img_transformed, target=pathology, baselines=img_transformed * 0)
         _ = viz.visualize_image_attr_multiple(np.transpose(attr_dl.squeeze().cpu().detach().numpy(), (1,2,0)),
@@ -153,12 +173,13 @@ def main(image_index):
                                               ["all", "positive"],
                                               cmap=default_cmap,
                                               show_colorbar=True)
+        del attr_dl
     elif method_input == '4':
         print('Exiting...')
         return
     else:
         raise NotImplementedError('Only 0-4 are valid input values')
     
-    
+    gc.collect()
     
     return
