@@ -30,6 +30,8 @@ from captum.attr import DeepLift
 from captum.attr import visualization as viz
 #from captum.attr import Occlusion
 
+from pseudo_labeller import get_threshold
+
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 #device = torch.device('cpu')
 print('Executing on device:', device)
@@ -44,8 +46,11 @@ def model_transform(model):
 
 def main(image_index, model_index=23):
     
-    # --- Load Model ---
+    # --- Get Threshold ---
     model = './model/base'+str(model_index)+'.pkl'
+    threshold, _ = get_threshold(model_dir=model, use_cached=True, search_space=np.linspace(0,1,101))
+    
+    # --- Load Model ---
     model = torch.load(model, map_location=device).to(device)
     model = model.eval()
     
@@ -78,9 +83,9 @@ def main(image_index, model_index=23):
     pred = model(img_transformed)
     print()
     print('[Prediction]')
-    print('{:17s} {:7s} {:3s}'.format('Pathology','Predict','Ans'))
-    for lbl, prd, gd in zip(target_label[target_obsrv], pred[0][target_obsrv], label_gd[img_index][target_obsrv]):
-        print('{:17s}:{:.5f}({})'.format(lbl, prd.item(), gd))
+    print('{:17s}|{:4s}|{:4s}|{:4s}|{:3s}'.format('Pathology','Prob','Thrs','Pred','Ans'))
+    for lbl, prd, thrsh, gd in zip(target_label[target_obsrv], pred[0][target_obsrv], threshold[target_obsrv], label_gd[img_index][target_obsrv]):
+        print('{:17s}:{:4.2f} {:4.2f} {:4d} {:3d}'.format(lbl, prd.item(), thrsh, int(prd.item()>thrsh), int(gd)))
     
     del pred
     torch.cuda.empty_cache()
