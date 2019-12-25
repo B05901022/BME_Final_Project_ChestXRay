@@ -12,6 +12,7 @@ import pandas as pd
 import gc
 import warnings
 import sys
+import argparse
 from tqdm import tqdm
 from src.dataset import UnlabeledImageDataLoader, ImageDataLoader
 
@@ -85,13 +86,13 @@ def get_threshold(model_dir, use_cached, search_space,
         
     return np.array(thresholds), np.array(acc_all)
 
-def main(output_pred_csv):
+def main(args):
     
     warnings.filterwarnings("ignore")
     
     # --- THRESHOLD ---
-    test_dir = 'model/base23.pkl'
-    threshold, _ = get_threshold(model_dir=test_dir, use_cached=True, search_space=np.linspace(0,1,101))
+    test_dir = 'model/base'+str(args.model_index)+'.pkl'
+    threshold, _ = get_threshold(model_dir=test_dir, use_cached=args.use_cached, search_space=np.linspace(0,1,args.search_num))
     
     # --- MODEL / DATA_LOADER ---
     test_model = torch.load(test_dir, map_location=device).to(device)
@@ -100,7 +101,7 @@ def main(output_pred_csv):
                                                       image_dir = '../ChestX-ray14/images/',
                                                       label_dir_list = ['../ChestX-ray14/train_val_list.txt', '../ChestX-ray14/test_list.txt'],
                                                       batchsize=6,
-                                                      res=320,
+                                                      res=args.res,
                                                       train=False)
         
     # --- TEST ---
@@ -113,7 +114,7 @@ def main(output_pred_csv):
             pred_list.append((one_row>=threshold).astype(int))
     
     # --- WRITE FILE ---
-    with open(output_pred_csv, 'w') as f:
+    with open(args.output_pred_csv, 'w') as f:
         print(headers, file=f)
         for index in range(len(pred_list)):
             print('ChestX-ray14/images/'+test_path[index], end=',', file=f)
@@ -125,5 +126,11 @@ def main(output_pred_csv):
     return
 
 if __name__ == '__main__':
-    output_pred_csv = sys.argv[1]
-    main(output_pred_csv)
+    parser = argparse.ArgumentParser(description='BME_Final')
+    parser.add_argument('--output_pred_csv', '-o', help='Directory to store the label file.', type=str)
+    parser.add_argument('--model_index',     '-m', help='Which model to be used.(using config#)', type=int, default=23)
+    parser.add_argument('--use_cached',      '-u', help='(optional) If using the cached prediction threshold in ./Threshold/', type=bool, default=True)
+    parser.add_argument('--search_num',      '-s', help='(optional) How many numbers between [0,1] to be searched for threshold. \'-u\' must be False for working', type=int, default=101)                                                                                                                                                              
+    parser.add_argument('--res',             '-r', help='(optional) Which resolution for labelling.', type=int, default=320)
+    args = parser.parse_args()
+    main(args)

@@ -7,20 +7,14 @@ Created on Mon Dec 23 23:08:37 2019
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
 from PIL import Image
-
 import gc
 import os
-import copy
-import json
 import numpy as np
 import pandas as pd
+import argparse
+import warnings
 from matplotlib.colors import LinearSegmentedColormap
-
-import torchvision
-from torchvision import models
 from torchvision import transforms
 
 from captum.attr import IntegratedGradients
@@ -28,13 +22,8 @@ from captum.attr import GradientShap
 from captum.attr import NoiseTunnel
 from captum.attr import DeepLift
 from captum.attr import visualization as viz
-#from captum.attr import Occlusion
 
 from pseudo_labeller import get_threshold
-
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-#device = torch.device('cpu')
-print('Executing on device:', device)
 
 def model_transform(model):
     def backward_hook(module, grad_input, grad_output):
@@ -44,11 +33,15 @@ def model_transform(model):
             m.saved_grad = m.register_backward_hook(backward_hook)
     return model
 
-def main(image_index, model_index=23):
+def main(args):
+    
+    warnings.filterwarnings("ignore")
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    print('Executing on device:', device)
     
     # --- Get Threshold ---
-    model = './model/base'+str(model_index)+'.pkl'
-    threshold, _ = get_threshold(model_dir=model, use_cached=True, search_space=np.linspace(0,1,101))
+    model = './model/base'+str(args.model_index)+'.pkl'
+    threshold, _ = get_threshold(model_dir=model, use_cached=args.use_cached, search_space=np.linspace(0,1,args.search_num))
     
     # --- Load Model ---
     model = torch.load(model, map_location=device).to(device)
@@ -67,7 +60,7 @@ def main(image_index, model_index=23):
     label_gd = label[:,5:]
     
     # --- Image ---
-    img_index = image_index
+    img_index = args.image_index
     img_dir   = '../'
     transform = transforms.Compose([transforms.Resize(224),
                                     transforms.CenterCrop(224),
@@ -87,6 +80,7 @@ def main(image_index, model_index=23):
     for lbl, prd, thrsh, gd in zip(target_label[target_obsrv], pred[0][target_obsrv], threshold[target_obsrv], label_gd[img_index][target_obsrv]):
         print('{:17s}:{:4.2f} {:4.2f} {:4d} {:3d}'.format(lbl, prd.item(), thrsh, int(prd.item()>thrsh), int(gd)))
     
+    print()
     del pred
     torch.cuda.empty_cache()
     gc.collect()
@@ -122,7 +116,7 @@ def main(image_index, model_index=23):
                                                       (1, '#000000')],
                                                        N=256)
     print()
-    method_input = input('Please enter which method to visualize:\n[0]GradientShap\n[1]IntegratedGradients\n[2]NoiseTunnel\n[3]DeepLift\n[4]Exit\n')
+    method_input = input('Please enter which method to visualize:\n[0]GradientShap\n[1]DeepLift\n[2]Exit\n')
     if method_input == '0':
         print('Using GradientShap')
         # --- Gradient Shap ---
@@ -144,6 +138,26 @@ def main(image_index, model_index=23):
                                               show_colorbar=True)
         del attributions_gs
     elif method_input == '1':
+        print('Using DeepLIFT')
+        # --- Deep Lift ---
+        model = model_transform(model)
+        dl = DeepLift(model)
+        attr_dl = dl.attribute(img_transformed, target=pathology, baselines=img_transformed * 0)
+        _ = viz.visualize_image_attr_multiple(np.transpose(attr_dl.squeeze().cpu().detach().numpy(), (1,2,0)),
+                                              np.transpose(img.squeeze().cpu().detach().numpy(), (1,2,0)),
+                                              ["original_image", "heat_map"],
+                                              ["all", "positive"],
+                                              cmap=default_cmap,
+                                              show_colorbar=True)
+        del attr_dl
+    elif method_input == '2':
+        print('Exiting...')
+        return
+    else:
+        raise NotImplementedError('Only 0-2 are valid input values')
+        
+    """
+    elif method_input == '2':
         print('Using Integrated Gradients')
         # --- Integrated Gradients ---
         integrated_gradients = IntegratedGradients(model)
@@ -155,7 +169,7 @@ def main(image_index, model_index=23):
                                               show_colorbar=True,
                                               sign=["all", "positive"])
         del attributions_ig
-    elif method_input == '2':
+    elif method_input == '3':
         print('Using Noise Tunnel')
         # --- Noise Tunnel ---
         integrated_gradients = IntegratedGradients(model)
@@ -168,23 +182,17 @@ def main(image_index, model_index=23):
                                               cmap=default_cmap,
                                               show_colorbar=True)
         del attributions_ig_nt
-    elif method_input == '3':
-        model = model_transform(model)
-        dl = DeepLift(model)
-        attr_dl = dl.attribute(img_transformed, target=pathology, baselines=img_transformed * 0)
-        _ = viz.visualize_image_attr_multiple(np.transpose(attr_dl.squeeze().cpu().detach().numpy(), (1,2,0)),
-                                              np.transpose(img.squeeze().cpu().detach().numpy(), (1,2,0)),
-                                              ["original_image", "heat_map"],
-                                              ["all", "positive"],
-                                              cmap=default_cmap,
-                                              show_colorbar=True)
-        del attr_dl
-    elif method_input == '4':
-        print('Exiting...')
-        return
-    else:
-        raise NotImplementedError('Only 0-4 are valid input values')
+    """
     
     gc.collect()
     
     return
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='BME_Final')
+    parser.add_argument('--image_index', '-i', help='Which patient from the validation set.', type=int, default=93)
+    parser.add_argument('--model_index', '-m', help='Which model to be visualized.(using config#)', type=int, default=23)
+    parser.add_argument('--use_cached',  '-u', help='(optional) If using the cached prediction threshold in ./Threshold/', type=bool, default=True)
+    parser.add_argument('--search_num',  '-s', help='(optional) How many numbers between [0,1] to be searched for threshold. \'-u\' must be False for working', type=int, default=101)                                                                                                                                                              
+    args = parser.parse_args()
+    main(args)
